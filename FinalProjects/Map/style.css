@@ -1,0 +1,83 @@
+body {
+  background: linear-gradient(180deg, #f3f6fb 0%, #ffffff 100%);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial;
+  color: #1f2937;
+}
+
+.map-container {
+  position: relative;
+  width: 1000px;
+  max-width: 100%;
+  margin: 0 auto 1.5rem;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.06);
+  background: #ffffff;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.map-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  border-radius: 6px;
+}
+
+.marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -100%);
+  z-index: 50;
+  pointer-events: none;
+  animation: markerPop 220ms ease;
+}
+
+.marker .flag-img {
+  display: block;
+  width: 28px;
+  height: auto;
+  transform-origin: center bottom;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  outline: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.marker .label {
+  margin-top: 6px;
+  display: inline-block;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 8px;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  padding: 6px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.08);
+  pointer-events: auto; /* allow hover/click if needed */
+  position: relative;
+  left: 50%;
+}
+
+.marker .label strong {
+  display: block;
+  font-weight: 600;
+  color: #0f172a;
+}
+.marker .label small {
+  color: #475569;
+  font-weight: 500;
+}
+
+.marker .label:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.12);
+}
+
+.red {
+  font-size: 18px;
+  transform: translate(-50%, -50%);
+}
