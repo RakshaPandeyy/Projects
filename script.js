@@ -1,3 +1,5 @@
+// script.js (replace your current file with this)
+
 const coordinates = {
   "Jammu and Kashmir": { x: 360, y: 120 },
   "Himachal Pradesh": { x: 360, y: 250 },
@@ -96,16 +98,22 @@ function primeAudioOnce() {
   audioPrimed = true;
   [audioMark, audioClear].forEach((a) => {
     if (!a) return;
-
     a.play()
       .then(() => {
         a.pause();
         a.currentTime = 0;
       })
-      .catch(() => {});
+      .catch(() => {
+        // ignore play rejection
+      });
   });
 }
+// prime on click or touch so mobile allows later plays
 document.addEventListener("click", primeAudioOnce, {
+  once: true,
+  capture: true,
+});
+document.addEventListener("touchstart", primeAudioOnce, {
   once: true,
   capture: true,
 });
@@ -131,6 +139,7 @@ function playSound(id) {
     const p = el.play();
     if (p && typeof p.then === "function") {
       p.catch((err) => {
+        // mobile may block; already attempted to prime earlier
         console.warn("Audio play rejected:", err);
       });
     }
@@ -139,29 +148,51 @@ function playSound(id) {
   }
 }
 
-function getImageOffset() {
-  if (!imgEl) return { left: 0, top: 0 };
+/**
+ * Compute scaled pixel position for a coordinate defined in original image pixels.
+ * This handles responsive scaling of the image.
+ * Returns { left: pxRelativeToContainer, top: pxRelativeToContainer }
+ */
+function getScaledPositionForState(state) {
+  if (!imgEl || !coordinates[state]) return null;
 
-  return {
-    left: imgEl.offsetLeft,
-    top: imgEl.offsetTop,
-  };
+  // bounding rect of the image on screen
+  const imgRect = imgEl.getBoundingClientRect();
+  const containerRect = mapContainer.getBoundingClientRect();
+
+  // natural/original size required for correct scale
+  const naturalWidth = imgEl.naturalWidth || imgEl.width;
+  const naturalHeight = imgEl.naturalHeight || imgEl.height;
+
+  // scale factors
+  const scaleX = imgRect.width / naturalWidth;
+  const scaleY = imgRect.height / naturalHeight;
+
+  // use same scale for x and y if image keeps aspect ratio (should)
+  // but compute both just in case
+  const leftOnPage = imgRect.left + coordinates[state].x * scaleX;
+  const topOnPage = imgRect.top + coordinates[state].y * scaleY;
+
+  // convert to coordinates relative to container (since markers are appended to container)
+  const leftRelative = leftOnPage - containerRect.left;
+  const topRelative = topOnPage - containerRect.top;
+
+  return { left: Math.round(leftRelative), top: Math.round(topRelative) };
 }
 
-function Marker(state) {
+function createOrUpdateMarker(state) {
   if (!state || !coordinates[state]) {
     console.warn("Unknown state or missing coordinates:", state);
     return;
   }
 
-  const imgOffset = getImageOffset();
-  const leftPx = imgOffset.left + coordinates[state].x;
-  const topPx = imgOffset.top + coordinates[state].y;
+  const pos = getScaledPositionForState(state);
+  if (!pos) return;
 
   if (createdMarkers[state]) {
     const existing = createdMarkers[state];
-    existing.style.left = leftPx + "px";
-    existing.style.top = topPx + "px";
+    existing.style.left = pos.left + "px";
+    existing.style.top = pos.top + "px";
 
     const lbl = existing.querySelector(".label .state-name");
     const cap = existing.querySelector(".label .state-cap");
@@ -172,8 +203,8 @@ function Marker(state) {
 
   const marker = document.createElement("div");
   marker.className = "marker";
-  marker.style.left = leftPx + "px";
-  marker.style.top = topPx + "px";
+  marker.style.left = pos.left + "px";
+  marker.style.top = pos.top + "px";
   marker.setAttribute("data-state", state);
 
   const flagImg = document.createElement("img");
@@ -197,23 +228,25 @@ function Marker(state) {
 }
 
 function search() {
-  const state = document.getElementById("state").value;
-  if (!state) return;
-  const exact = coordinates[state]
-    ? state
+  const stateVal = document.getElementById("state").value;
+  if (!stateVal) return;
+  const exact = coordinates[stateVal]
+    ? stateVal
     : Object.keys(coordinates).find(
-        (k) => k.toLowerCase() === state.toLowerCase()
+        (k) => k.toLowerCase() === stateVal.toLowerCase()
       );
-  if (exact) Marker(exact);
-  else {
-    const trimmed = state.trim().toLowerCase();
+  if (exact) {
+    createOrUpdateMarker(exact);
+  } else {
+    const trimmed = stateVal.trim().toLowerCase();
     const match = Object.keys(coordinates).find((k) =>
       k.toLowerCase().includes(trimmed)
     );
-    if (match) Marker(match);
-    else console.warn("No coordinate match for:", state);
+    if (match) createOrUpdateMarker(match);
+    else console.warn("No coordinate match for:", stateVal);
   }
 }
+
 function resetMarkers() {
   Object.keys(createdMarkers).forEach((k) => {
     const el = createdMarkers[k];
@@ -228,31 +261,28 @@ function resetMarkers() {
 }
 
 function markAll() {
-  Object.keys(coordinates).forEach((state) => Marker(state));
+  Object.keys(coordinates).forEach((state) => createOrUpdateMarker(state));
 }
 
-window.addEventListener("resize", () => {
+function updateAllMarkerPositions() {
   Object.keys(createdMarkers).forEach((state) => {
     if (createdMarkers[state]) {
-      const imgOffset = getImageOffset();
-      createdMarkers[state].style.left =
-        imgOffset.left + coordinates[state].x + "px";
-      createdMarkers[state].style.top =
-        imgOffset.top + coordinates[state].y + "px";
+      const pos = getScaledPositionForState(state);
+      if (pos) {
+        createdMarkers[state].style.left = pos.left + "px";
+        createdMarkers[state].style.top = pos.top + "px";
+      }
     }
   });
-});
+}
 
+// reposition on resize / orientation change
+window.addEventListener("resize", updateAllMarkerPositions);
+window.addEventListener("orientationchange", updateAllMarkerPositions);
+
+// also re-calc whenever image finishes loading or when layout may change
 if (imgEl) {
-  imgEl.addEventListener("load", () => {
-    Object.keys(createdMarkers).forEach((state) => {
-      if (createdMarkers[state]) {
-        const imgOffset = getImageOffset();
-        createdMarkers[state].style.left =
-          imgOffset.left + coordinates[state].x + "px";
-        createdMarkers[state].style.top =
-          imgOffset.top + coordinates[state].y + "px";
-      }
-    });
-  });
+  imgEl.addEventListener("load", updateAllMarkerPositions);
+  // in case image was already loaded (cached)
+  if (imgEl.complete) updateAllMarkerPositions();
 }
